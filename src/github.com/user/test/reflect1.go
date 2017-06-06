@@ -22,5 +22,18 @@ func main() {
      fmt.Println("============可写性============")
 
      canset := mValue.CanSet()
-       fmt.Println(canset)
+     fmt.Println(canset)
+
+  fmt.Println("============可写性 改变值============")
+     var x float64 = 3.4;
+    fmt.Println(x)
+     r := reflect.ValueOf(&x)
+     fmt.Println("type of r:", r.Type())
+     fmt.Println("settability of r:", r.CanSet())
+
+     v := r.Elem()
+     fmt.Println("settability of v:", v.CanSet()) // true
+     v.SetFloat(7.1)
+     fmt.Println(v.Interface())  // 7.1
+     fmt.Println(x)  // 7.1
 }

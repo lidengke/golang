@@ -132,3 +132,63 @@ v := reflect.ValueOf(x)
 
 这看上去很诡异，但是事实上很常见，在函数的传递过程中就会经常出这种情况，例如：
 
+传递一个参数x 给函数 f(x) 函数f改变x的值，因为传递给f的是x的一个copy，而不是x自身(c语言中的值传递和指针传递的区别)。 如果想通过f改变x的值，那么就需要将变量x
+的地址传给函数f(也就是指针)。 
+
+反射的工作原理和上述的场景是一样的，如果希望通过反射来改变变量x的值，那么就需要给reflect.ValueOf()传递当前变量x的地址(指针)
+
+var  x float64 = 3.4
+
+r := reflect.ValueOf(&x) // 传递给ValueOf()的是一个地址，而不是x的变量copy
+
+fmt.Println("type of r:", r.Type())
+fmt.Println("settability of r:", r.CanSet())
+
+输出如下:
+type of r: *float64
+settability of r: false
+
+r是一个反射对象,r绑定的静态类型为*float64
+r.CanSet() 返回false。表明r是不可写的 ? 上文中不是说可以通过传递地址来修改变量的值么,这里为什么返回的确是不可写,怎么回事呢?
+
+需要说明的是：
+r是一个反射对象变量，他type绑定的是一个指针。 实际上我们也不是要修改r，而是要修改p指向的变量。为了得到 r指向的数据，
+可以调用 Value 类型的 Elem 方法。Elem 方法能够对指针进行“解引用”，然后将结果存储到反射 Value类型对象 v中：
+
+v := r.Elem()
+fmt.Println("settability of v:", v.CanSet()) // true
+v.SetFloat(7.1)
+fmt.Println(v.Interface())  // 7.1
+fmt.Println(x)  // 7.1
+
+
+结构体（struct）
+在前面的例子中，变量 v 本身并不是指针，它只是从指针衍生而来。把反射应用到结构体时，常用的方式是 使用反射修改一个结构体的某些字段。只要拥有结构体的地址，我们就可以修改它的字段。
+下面通过一个简单的例子对结构体类型变量 t 进行分析。
+首先，我们创建了反射类型对象，它包含一个结构体的指针，因为后续会修改。
+然后，我们设置 typeOfT 为它的类型，并遍历所有的字段。
+注意：我们从 struct 类型提取出每个字段的名字，但是每个字段本身也是常规的 reflect.Value 对象。
+type T struct {
+ A int
+ B string
+}
+t := T{23, "skidoo"}
+s := reflect.ValueOf(&t).Elem()
+typeOfT := s.Type()
+for i := 0; i < s.NumField(); i++ {
+ f := s.Field(i)
+ fmt.Printf("%d: %s %s = %v\n", i,
+  typeOfT.Field(i).Name, f.Type(), f.Interface())
+}
+上面这段代码的输出如下：
+A int = 23
+B string = skidoo
+这里还有一点需要指出：变量 T 的字段都是首字母大写的（暴露到外部），因为struct中只有暴露到外部的字段才是“可写的”。
+由于变量 s 包含一个“可写的”反射对象，我们可以修改结构体的字段：
+
+f.Interface())s.Field(0).SetInt(77)
+s.Field(1).SetString("Sunset Strip")
+fmt.Println("t is now", t)
+上面代码的输出如下：
+t is now {77 Sunset Strip}
+如果变量 s 是通过 t ，而不是 &t 创建的，调用 SetInt 和 SetString 将会失败，因为 t 的字段不是“可写的”。
